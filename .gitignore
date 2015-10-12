@@ -34,3 +34,8 @@ local.properties
 Session.vim
 .netrwhist
 *~
+
+# python
+build/
+dist/
+*.egg-info/
