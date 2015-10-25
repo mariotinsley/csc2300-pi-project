@@ -39,3 +39,7 @@ Session.vim
 build/
 dist/
 *.egg-info/
+.eggs/
+.tox/
+.cache/
+.hypothesis/
