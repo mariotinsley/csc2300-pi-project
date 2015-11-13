@@ -93,7 +93,4 @@ class USBCamera(Camera):
     def capture(self, output, format="png", **kwargs):
         # TODO: Check error codes and throw exceptions
         outargs = ["--{}".format(format), "-1", output]
-        subprocess.run(["fswebcam"] + self.args + outargs, **kwargs)
-
-def _fullname(o):
-    return o.__module__ + o.__class__.__qualname__
+        return subprocess.run(["fswebcam"] + self.args + outargs, **kwargs)

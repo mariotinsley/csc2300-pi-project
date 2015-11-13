@@ -41,3 +41,5 @@ def cleanup(state):
     state.pitch_motor.stop()
     GPIO.cleanup()
 
+def fullname(o):
+    return o.__module__ + "." + o.__class__.__qualname__
