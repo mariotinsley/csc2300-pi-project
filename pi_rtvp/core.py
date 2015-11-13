@@ -3,6 +3,7 @@ functions that will be used throughout the rest of the project.
 """
 
 import pi_rtvp.gpio as GPIO
+from pi_rtvp.motor import angle_to_dutycycle
 
 class ProgramState(object):
     """Container for global state variables, functions that intend to use these
@@ -20,6 +21,24 @@ class ProgramState(object):
         self.picam_path = picam_path
         self.usbcam_path = usbcam_path
         self.kernel = kernel
+
+    def __repr__(self):
+       return "ProgramState({!r}, {!r}, {!r}, {!r}, {!r})".format(
+               self.yaw_motor, self.pitch_motor,
+               self.picam_path, self.usbcam_path,
+               self.kernel)
+
+    def __str__(self):
+        return ("yaw={}\n"
+                "pitch={}\n"
+                "yaw_motor={}\n"
+                "pitch_motor={}\n"
+                "picam_path={}\n"
+                "usbcam_path={}\n"
+                "output={}\n"
+                "kernel={}").format(self.yaw, self.pitch, self.yaw_motor,
+                                    self.pitch_motor, self.picam_path,
+                                    self.usbcam_path, self.output, self.kernel)
 
 def setup(yaw_motor, pitch_motor, freq=100):
     """Attempt to setup the Raspberry Pi and PWM outputs.
