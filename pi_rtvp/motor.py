@@ -27,16 +27,30 @@ def set_pitch(state, angle):
     if angle < 0:
         angle = 0
     elif angle > 180:
-        angle = 0
+        angle = 180
     state.pitch_motor.ChangeDutyCycle(angle_to_dutycycle(angle))
   
 def set_yaw(state, angle):
     if angle < 0:
         angle = 0
     elif angle > 180:
-        angle = 0
+        angle = 180
     state.pitch_motor.ChangeDutyCycle(angle_to_dutycycle(angle))
-  
+
+def set_pitch_delta(state, angle, added_angle):
+    if (angle + added_angle) < 0:
+        angle = 0
+    elif (angle + added_angle) > 180:
+        angle = 180
+    state.pitch_motor.ChangeDutyCycle(angle_to_dutycycle(angle))
+
+def set_yaw_delta(state, angle, added_angle):
+    if (angle + added_angle) < 0:
+        angle = 0
+    elif (angle + added_angle) > 180:
+        angle = 180
+    state.pitch_motor.ChangeDutyCycle(angle_to_dutycycle(angle))
+
 
 
 
