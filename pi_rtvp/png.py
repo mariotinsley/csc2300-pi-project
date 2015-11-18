@@ -30,6 +30,9 @@ class PNGImage(object):
     def __iter__(self):
         return iter(self.data)
 
+    def __len__(self):
+        return len(self.data)
+
     def __repr__(self):
         return "{}({!r}, {!r}, {!r}, {!r}, {!r})".format(core.fullname(self),
                                                          self.file, self.width,
@@ -53,7 +56,7 @@ class PNGImage(object):
     def is_matrix_in_bounds(self, y, x, size):
         median = int(size / 2)
         return (y - median >= 0 and x - median >= 0 and
-                y + median < self.height - 1 and x + median < self.width - 1)
+                y + median <= self.height - 1 and x + median <= self.width - 1)
 
     def is_valid_coord(self, y, x):
         return (y >= 0 and x >= 0 and y < self.height and x < self.width)
@@ -63,7 +66,7 @@ class PNGImage(object):
             if not self.is_valid_coord(y, x):
                 # TODO: Error handler
                 return []
-            if is_corner(self, y, x):
+            if is_corner(self, y, x, size):
                 return corner_matrix(self, y, x, size)
             else:
                 return edge_matrix(self, y, x, size)
@@ -90,6 +93,10 @@ class PNGImageStream(object):
         a.frombytes(self.data)
         return PNGImage(a)
 
+def capture_picam(picamera):
+    cap = picamera.capture(PNGImageStream())
+    return cap
+
 def capture_usbcam(usbcamera):
     cap = usbcamera.capture("-", stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     data = array('B')
@@ -114,56 +121,57 @@ def convert_to_greyscale(image):
         info["background"] = (255)
     return PNGImage(None, image.width, image.height, data, info)
 
-def is_corner(image, y, x):
-    return (x == 0 and y == 0 or
-            x == 0 and y == image.height - 1 or
-            x == image.width - 1 and y == 0 or
-            x == image.width - 1 and y == image.height - 1)
+def is_corner(image, y, x, size):
+    median = int(size / 2)
+    return (x - median <= 0 and y - median <= 0 or
+            x - median <= 0 and y + median >= image.height - 1 or
+            x + median >= image.width - 1 and y - median <= 0 or
+            x + median >= image.width - 1 and y + median >= image.height - 1)
 
 # This stuff is tricky to think about - is there an easier way?
 def corner_matrix(image, y, x, size):
     data = []
     median = int(size / 2)
-    if x == 0 and y == 0:
+    if x - median <= 0 and y - median <= 0:
         # top left - outs first, extend starts
         for i in range(0, median+1):
             data.append(array("B"))
-            data[i].extend([image[y][x]] * median)
-            for j in range(0, size-1):
+            extend_corner(data, i, image, y, x, -median)
+            for j in range(0, median+1):
                 data[i].append(image[y][x+j])
         for i in range(median+1, size):
             data.append(array("B"))
-            data[i].extend([image[y+i][x]] * median)
-            for j in range(0, size-1):
+            extend_corner(data, i, image, y+i, x, -median)
+            for j in range(0, median+1):
                 data[i].append(image[y+i][x+j])
-    elif x == 0 and y == image.height - 1:
+    elif x - median <= 0 and y + median >= image.height - 1:
         # bottom left - ins first, extend starts
         for i in range(size, median+1, -1):
             idx = size - i
             imidx = i - 1
             data.append(array("B"))
-            data[idx].extend([image[y-imidx][x]] * median)
-            for j in range(0, size-1):
+            extend_corner(data, idx, image, y-imidx, x, -median)
+            for j in range(0, median+1):
                 data[idx].append(image[y-imidx][x+j])
         for i in range(median+1, 0, -1):
             idx = size - i
             data.append(array("B"))
-            data[idx].extend([image[y][x]] * median)
-            for j in range(0, size-1):
+            extend_corner(data, idx, image, y, x, -median)
+            for j in range(0, median+1):
                 data[idx].append(image[y][x+j])
-    elif x == image.width - 1 and y == 0:
+    elif x + median >= image.width - 1 and y - median <= 0:
         # top right - outs first, extend ends
         for i in range(0, median+1):
             data.append(array("B"))
             for j in range(median, -1, -1):
                 data[i].append(image[y][x-j])
-            data[i].extend([image[y][x]] * median)
+            extend_corner(data, i, image, y, x, median)
         for i in range (median+1, size):
             data.append(array("B"))
             for j in range(median, -1, -1):
-                data[i].append(image[y][x-j])
-            data[i].extend([image[y][x]] * median)
-    elif x == image.width - 1 and y == image.height - 1:
+                data[i].append(image[y+i][x-j])
+            extend_corner(data, i, image, y+i, x, median)
+    elif x + median >= image.width - 1 and y + median >= image.height - 1:
         # bottom right - ins first, extend ends
         for i in range(size, median+1, -1):
             idx = size - i
@@ -171,31 +179,53 @@ def corner_matrix(image, y, x, size):
             data.append(array("B"))
             for j in range(median, -1, -1):
                 data[idx].append(image[y-imidx][x-j])
-            data[idx].extend([image[y-imidx][x]] * median)
+            extend_corner(data, idx, image, y-imidx, x, median)
         for i in range(median+1, 0, -1):
             idx = size - i
             data.append(array("B"))
             for j in range(median, -1, -1):
                 data[idx].append(image[y][x-j])
-            data[idx].extend([image[y][x]] * median)
+            extend_corner(data, idx, image, y, x, median)
     return data
+
+def extend_corner(data, idx, image, y, x, median):
+    if median > 0:
+        for i in range(0, median):
+            try:
+                data[idx].append(image[y][x+median-i])
+            except IndexError:
+                data[idx].append(image[y][x])
+    else:
+        for i in range(0, median, -1):
+            try:
+                # python treats negative list indices as list[len(list)-n]
+                if x+median-i < 0:
+                    raise IndexError
+                data[idx].append(image[y][x+median-i])
+            except IndexError:
+                data[idx].append(image[y][x])
 
 def edge_matrix(image, y, x, size):
     data = []
     median = int(size / 2)
-    if y == 0:
+    if y - median <= 0:
         # top row, outs first
         for i in range(0, median+1):
             data.append(array("B"))
             for j in range(0, size):
                 jdx = j - median
-                data[i].append(image[y][x+jdx])
+                try:
+                    if y - median - i < 0:
+                        raise IndexError
+                    data[i].append(image[y-median+i][x+jdx])
+                except IndexError:
+                    data[i].append(image[y][x+jdx])
         for i in range(median+1, size):
             data.append(array("B"))
             for j in range(0, size):
                 jdx = j - median
                 data[i].append(image[y+i][x+jdx])
-    elif y == image.height - 1:
+    elif y + median >= image.height - 1:
         # bottom row, outs last
         for i in range(size, median+1, -1):
             idx = size - i
@@ -209,23 +239,33 @@ def edge_matrix(image, y, x, size):
             data.append(array("B"))
             for j in range(0, size):
                 jdx = j - median
-                data[idx].append(image[y][x+jdx])
-    elif x == 0:
+                try:
+                    data[idx].append(image[y+idx-median][x+jdx])
+                except IndexError:
+                    data[idx].append(image[y][x+jdx])
+    elif x - median <= 0:
         # left side, extend first
         for i in range(0, size):
             idx = i - median
             data.append(array("B"))
-            data[i].extend([image[y+idx][x]] * median)
-            for j in range(0, size-1):
-                data[i].append(image[y+idx][x+j])
-    elif x == image.width - 1:
+            for j in range(0, size):
+                jdx = j - median
+                try:
+                    if x+jdx < 0:
+                        raise IndexError
+                    data[i].append(image[y+idx][x+jdx])
+                except IndexError:
+                    data[i].append(image[y+idx][x])
+    elif x + median >= image.width - 1:
         # right side, extend last
         for i in range(0, size):
             idx = i - median
             data.append(array("B"))
-            for j in range(median+1, 0, -1):
-                jdx = j - 1
-                data[i].append(image[y+idx][x-jdx])
-            data[i].extend([image[y+idx][x]] * median)
+            for j in range(0, size):
+                jdx = j - median
+                try:
+                    data[i].append(image[y+idx][x+jdx])
+                except IndexError:
+                    data[i].append(image[y+idx][x])
         return data
     return data

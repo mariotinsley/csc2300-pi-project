@@ -3,6 +3,7 @@ functions that will be used throughout the rest of the project.
 """
 
 import pi_rtvp.gpio as GPIO
+import pi_rtvp.kernel as kernel
 from pi_rtvp.motor import angle_to_dutycycle
 
 class ProgramState(object):
@@ -10,9 +11,8 @@ class ProgramState(object):
     should take the state as their first parameter
     """
 
-    # TODO: kernel param should be a Kernel object, not a string
     def __init__(self, yaw_motor, pitch_motor,
-                 picam_path="/dev/video0", usbcam_path="/dev/video1", kernel="mean"):
+                 picam_path="/dev/video0", usbcam_path="/dev/video1", kernel=kernel.mean):
         self.yaw = 0
         self.pitch = 0
         self.output = "/dev/null"
@@ -20,7 +20,7 @@ class ProgramState(object):
         self.pitch_motor = pitch_motor
         self.picam_path = picam_path
         self.usbcam_path = usbcam_path
-        self.kernel = kernel
+        self.kernel = kernel.mean
 
     def __repr__(self):
        return "ProgramState({!r}, {!r}, {!r}, {!r}, {!r})".format(
