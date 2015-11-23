@@ -19,8 +19,13 @@ else:
 
 if has_gpio:
     class PWM(GPIO.PWM):
-        def __init(self, pin, freq):
+        def __init__(self, pin, freq):
             super().__init__(pin, freq)
+
+        def __str__(self):
+            return "PWM at pin {}, freq {}Hz, dutycycle {}".format(self.pin,
+                                                                   self.freq,
+                                                                   self.dutycycle)
 else:
     class PWM(object):
         def __init__(self, pin, freq):
@@ -28,6 +33,11 @@ else:
             self.freq = freq
             self.dutycycle = 0
     
+        def __str__(self):
+            return "PWM at pin {}, freq {}Hz, dutycycle {}".format(self.pin,
+                                                                   self.freq,
+                                                                   self.dutycycle)
+
         def start(self, dc):
             self.dutycycle = dc
             pass
