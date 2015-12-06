@@ -3,6 +3,8 @@ from setuptools.command.test import test as TestCommand
 from codecs import open
 from os import path
 
+here = path.abspath(path.dirname(__file__))
+
 class Tox(TestCommand):
     user_options = [("tox-args=", "a",
                      "Arguments to pass to tox")]
@@ -18,8 +20,6 @@ class Tox(TestCommand):
             args = shlex.split(self.tox_args)
         errno = tox.cmdline(args=args)
         sys.exit(errno)
-
-here = path.abspath(path.dirname(__file__))
 
 with open(path.join(here, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
@@ -41,9 +41,10 @@ setup(
         "Programming Language :: Python :: 3",
     ],
     packages=find_packages(exclude=['docs', 'tests']),
-    install_requires=["RPi.GPIO", "picamera"],
+    install_requires=["RPi.GPIO", "picamera", "readchar"],
     tests_require=["tox"],
     cmdclass={"test": Tox},
+    data_files=[("/etc/pi_rtvp", [path.join(here, "conf/ffserver.rtvp.conf")])],
     entry_points={
         "console_scripts": [
             "pi_rtvp=pi_rtvp:main"

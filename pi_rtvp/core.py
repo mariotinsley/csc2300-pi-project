@@ -3,7 +3,8 @@ functions that will be used throughout the rest of the project.
 """
 
 import pi_rtvp.gpio as GPIO
-import pi_rtvp.kernel as kernel
+from pi_rtvp.util import fullname
+from pi_rtvp.kernel import mean
 from pi_rtvp.motor import angle_to_dutycycle
 
 class ProgramState(object):
@@ -12,7 +13,7 @@ class ProgramState(object):
     """
 
     def __init__(self, yaw_motor, pitch_motor,
-                 picam_path="/dev/video0", usbcam_path="/dev/video1", kernel=kernel.mean):
+                 picam_path="/dev/video0", usbcam_path="/dev/video1", kernel=mean):
         self.yaw = 0
         self.pitch = 0
         self.output = "/dev/null"
@@ -20,7 +21,7 @@ class ProgramState(object):
         self.pitch_motor = pitch_motor
         self.picam_path = picam_path
         self.usbcam_path = usbcam_path
-        self.kernel = kernel.mean
+        self.kernel = kernel
 
     def __repr__(self):
        return "ProgramState({!r}, {!r}, {!r}, {!r}, {!r})".format(
@@ -60,5 +61,3 @@ def cleanup(state):
     state.pitch_motor.stop()
     GPIO.cleanup()
 
-def fullname(o):
-    return o.__module__ + "." + o.__class__.__qualname__

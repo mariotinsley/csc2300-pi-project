@@ -1,7 +1,7 @@
 from array import array
 import copy
 import math
-from pi_rtvp.core import fullname
+from pi_rtvp.util import fullname
 from pi_rtvp.png import PNGImage
 
 class ImageKernel(object):
@@ -23,7 +23,7 @@ class ImageKernel(object):
                                              self.size, self.values)
 
     def __str__(self):
-        return "Kernel {!r}, size {}x{}".format(self.name, self.size)
+        return "Kernel {!r}, size {}x{}".format(self.name, self.size, self.size)
 
     def convolve(self, data):
         res = 0

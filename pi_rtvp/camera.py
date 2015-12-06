@@ -1,4 +1,5 @@
 from os.path import dirname, exists
+from pi_rtvp.util import fullname
 import subprocess
 
 has_picam = True
@@ -30,7 +31,7 @@ class Camera(object):
                                          self.height, self.fps)
 
     def __repr__(self):
-        return "{}({!r}, {!r}, {!r}, {!r})".format(_fullname(self), self.path,
+        return "{}({!r}, {!r}, {!r}, {!r})".format(fullname(self), self.path,
                                                    self.width, self.height, self.fps)
 
     def close(self):
@@ -60,7 +61,7 @@ class PiCamera(Camera):
                                                self.height, self.fps)
 
     def __repr__(self):
-        return "{}({!r}, {!r}, {!r}, {!r})".format(_fullname(self), self.path,
+        return "{}({!r}, {!r}, {!r}, {!r})".format(fullname(self), self.path,
                                                    self.width, self.height, self.fps)
     def close(self):
         self.cam.close()
@@ -71,8 +72,9 @@ class PiCamera(Camera):
 class USBCamera(Camera):
     def __init__(self, path, width, height, fps):
         super().__init__(path, width, height, fps)
+        # fswebcam needs a few frames to set exposure
         self.args = ["-d", path, "--no-banner", "-r", "{}x{}".format(width, height),
-                     "--fps", str(fps)]
+                     "--fps", str(fps), "-S", "2"]
 
     def __enter__(self):
         return self
@@ -84,7 +86,7 @@ class USBCamera(Camera):
         return "{}: {}x{}@{}fps), args={}".format(self.path, self.width,
                                                   self.height, self.fps, self.args)
     def __repr__(self):
-        return "{}({!r}, {!r}, {!r}, {!r})".format(_fullname(self), self.path,
+        return "{}({!r}, {!r}, {!r}, {!r})".format(fullname(self), self.path,
                                                    self.width, self.height, self.fps)
 
     def close(self):

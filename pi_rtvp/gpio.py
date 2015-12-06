@@ -20,12 +20,23 @@ else:
 if has_gpio:
     class PWM(GPIO.PWM):
         def __init__(self, pin, freq):
+            self.gpio = pin
+            self.freq = freq
+            self.dutycycle = 0
             super().__init__(pin, freq)
 
         def __str__(self):
-            return "PWM at pin {}, freq {}Hz, dutycycle {}".format(self.pin,
+            return "PWM at pin {}, freq {}Hz, dutycycle {}".format(self.gpio,
                                                                    self.freq,
                                                                    self.dutycycle)
+        def start(self, dc):
+            self.dutycycle = dc
+            super().ChangeDutyCycle(dc)
+
+        def ChangeDutyCycle(self, dc):
+            self.dutycycle = dc
+            super().ChangeDutyCycle(dc)
+            pass
 else:
     class PWM(object):
         def __init__(self, pin, freq):
@@ -34,7 +45,7 @@ else:
             self.dutycycle = 0
     
         def __str__(self):
-            return "PWM at pin {}, freq {}Hz, dutycycle {}".format(self.pin,
+            return "PWM at pin {}, freq {}Hz, dutycycle {}".format(self.gpio,
                                                                    self.freq,
                                                                    self.dutycycle)
 
@@ -49,17 +60,20 @@ else:
             self.dutycycle = dc
             pass
 
-def gpio_wrapper(func, *args):
+def setmode(mode):
     if has_gpio:
-        func(*args)
+        GPIO.setmode(mode)
     else:
         pass
 
-def setmode(mode):
-    gpio_wrapper(GPIO.setmode, mode)
-
 def setup(pin, mode):
-    gpio_wrapper(GPIO.setup, pin, mode)
+    if has_gpio:
+        GPIO.setup(pin, mode)
+    else:
+        pass
 
 def cleanup():
-    gpio_wrapper(GPIO.cleanup)
+    if has_gpio:
+        GPIO.cleanup()
+    else:
+        pass

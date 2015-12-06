@@ -2,7 +2,7 @@ from array import array
 import png
 import subprocess
 import pi_rtvp.camera as camera
-import pi_rtvp.core as core
+import pi_rtvp.util as util
 
 class PNGImage(object):
     def __init__(self, infile, width = 0, height = 0, data = None, info = None):
@@ -34,7 +34,7 @@ class PNGImage(object):
         return len(self.data)
 
     def __repr__(self):
-        return "{}({!r}, {!r}, {!r}, {!r}, {!r})".format(core.fullname(self),
+        return "{}({!r}, {!r}, {!r}, {!r}, {!r})".format(util.fullname(self),
                                                          self.file, self.width,
                                                          self.height, self.data,
                                                          self.info)
