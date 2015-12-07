@@ -6,7 +6,7 @@ def angle_to_dutycycle(angle):
     """Converts an angle to a duty cycle in the range of 0 to 100.
     This will clamp its results into this proper range.
     """
-    cycle = ((angle / 180) + 1) * 5
+    cycle = ((angle / 50) + 1) * 5
     if (cycle < 0):
         cycle = 0
     elif (cycle > 100):
@@ -21,7 +21,7 @@ def dutycycle_to_angle(dc):
         dc = 0
     elif (dc > 100):
         dc = 100
-    return (dc / 5 - 1) * 180
+    return (dc / 5 - 1) * 50
 
 def set_pitch(state, angle):
     if angle < 0:
@@ -35,7 +35,7 @@ def set_yaw(state, angle):
         angle = 0
     elif angle > 180:
         angle = 180
-    state.pitch_motor.ChangeDutyCycle(angle_to_dutycycle(angle))
+    state.yaw_motor.ChangeDutyCycle(angle_to_dutycycle(angle))
 
 def set_pitch_delta(state, angle, added_angle):
     if (angle + added_angle) < 0:
@@ -49,8 +49,4 @@ def set_yaw_delta(state, angle, added_angle):
         angle = 0
     elif (angle + added_angle) > 180:
         angle = 180
-    state.pitch_motor.ChangeDutyCycle(angle_to_dutycycle(angle))
-
-
-
-
+    state.yaw_motor.ChangeDutyCycle(angle_to_dutycycle(angle))

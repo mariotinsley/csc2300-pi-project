@@ -1,6 +1,6 @@
 from array import array
-import copy
-import math
+from math import sqrt
+import numpy as np
 from pi_rtvp.util import fullname
 from pi_rtvp.png import PNGImage
 
@@ -27,34 +27,44 @@ class ImageKernel(object):
 
     def convolve(self, data):
         res = 0
-        for i in range(0, self.size):
-            for j in range(0, self.size):
-                res += self[i][j] * data[i][j]
+        median = int(self.size / 2)
+        if (data == data[median, median]).all():
+            return data[median, median]
+        res = np.sum(self.values * data)
         return round(res)
 
     def convolve_image(self, image):
-        res_image = copy.deepcopy(image)
+        res_image = PNGImage(None, image.width, image.height,
+                             np.empty((image.height,image.width), dtype=np.uint8),
+                             image.info)
         for i in range(0, len(image)):
             for j in range (0, len(image[0])):
-                res_image[i][j] = self.convolve(image.get_matrix_at(i, j, self.size))
+                res_image[i, j] = self.convolve(image.get_matrix_at(i, j, self.size))
         return res_image
+
+class IdImageKernel(ImageKernel):
+    def convolve(self, data):
+        median = self.size / 2
+        return data[median, median]
 
 class MeanImageKernel(ImageKernel):
     def convolve(self, data):
         res = 0
-        for i in range(0, self.size):
-            for j in range(0, self.size):
-                res += self[i][j] * data[i][j]
+        median = int(self.size / 2)
+        if (data == data[median, median]).all():
+            return data[median, median]
+        res = np.sum(self.values * data)
         res /= self.size * self.size
         return round(res)
 
 class GaussianImageKernel(ImageKernel):
     def convolve(self, data):
         res = 0
-        for i in range(0, self.size):
-            for j in range(0, self.size):
-                res += self[i][j] * data[i][j]
-        res /= sum(map(lambda a: sum(a), self.values))
+        median = int(self.size / 2)
+        if (data == data[median, median]).all():
+            return data[median, median]
+        res = np.sum(self.values * data)
+        res /= np.sum(self.values)
         return round(res)
 
 class SobelImageKernel(ImageKernel):
@@ -71,11 +81,12 @@ class SobelImageKernel(ImageKernel):
         res = 0
         rx = 0
         ry = 0
-        for i in range(0, self.size):
-            for j in range(0, self.size):
-                rx += self.data_x[i][j] * data[i][j]
-                ry += self.data_y[i][j] * data[i][j]
-        res = math.sqrt(rx * rx + ry * ry) / 8
+        median = int(self.size / 2)
+        if (data == data[median, median]).all():
+            return 0
+        rx = np.sum(self.data_x * data)
+        ry = np.sum(self.data_y * data)
+        res = sqrt(rx * rx + ry * ry) / 8
         return round(res)
 
 class SobelGaussianImageKernel(ImageKernel):
@@ -90,7 +101,7 @@ class SobelGaussianImageKernel(ImageKernel):
 
     def convolve_image(self, image):
         res_image = self.gaussian.convolve_image(image)
-        res_image = self.sobel.convolve_image(image)
+        res_image = self.sobel.convolve_image(res_image)
         return res_image
 
 def generate_mean(size):
@@ -100,7 +111,7 @@ def generate_mean(size):
     for i in range(0, size):
         data.append(array("B"))
         data[i].extend([1] * size)
-    return MeanImageKernel("mean", size, data)
+    return MeanImageKernel("mean", size, np.array(data, dtype=np.uint8))
 
 def generate_gaussian(size):
     if size % 2 == 0:
@@ -122,11 +133,9 @@ def generate_gaussian(size):
         for j in range(median+1, size):
             jdx = size - j - 1
             data[i].append(2 ** (idx+jdx))
-    return GaussianImageKernel("gaussian", size, data)
+    return GaussianImageKernel("gaussian", size, np.array(data, dtype=np.uint16))
 
-id = ImageKernel("id", 3, [array("B", [0, 0, 0]),
-                           array("B", [0, 1, 0]),
-                           array("B", [0, 0, 0])])
+id = IdImageKernel("id", 3, np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype=np.uint8))
 
 mean = generate_mean(7)
 
@@ -134,8 +143,8 @@ gaussian = generate_gaussian(7)
 
 sobel = SobelImageKernel(
     "sobel", 3,
-    [array("b", [-1, 0, 1]), array("b", [-2, 0, 2]), array("b", [-1, 0, 1])],
-    [array("b", [-1, -2, -1]), array("b", [0, 0, 0]), array("b", [1, 2, 1])]
+    np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.int8),
+    np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=np.int8)
 )
 
 sobel_gaussian = SobelGaussianImageKernel("sobel-gaussian", 3, sobel, generate_gaussian(7))

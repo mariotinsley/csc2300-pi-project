@@ -41,7 +41,7 @@ setup(
         "Programming Language :: Python :: 3",
     ],
     packages=find_packages(exclude=['docs', 'tests']),
-    install_requires=["RPi.GPIO", "picamera", "readchar"],
+    install_requires=["RPi.GPIO", "picamera", "readchar", "numpy"],
     tests_require=["tox"],
     cmdclass={"test": Tox},
     data_files=[("/etc/pi_rtvp", [path.join(here, "conf/ffserver.rtvp.conf")])],
