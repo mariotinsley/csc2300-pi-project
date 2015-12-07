@@ -12,9 +12,11 @@ except RuntimeError:
 
 if has_gpio:
     BOARD = GPIO.BOARD
+    BCM = GPIO.BCM
     OUT = GPIO.OUT
 else:
     BOARD = 0
+    BCM = 0
     OUT = 0
 
 if has_gpio:

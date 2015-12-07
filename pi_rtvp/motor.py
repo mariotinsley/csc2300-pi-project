@@ -1,7 +1,5 @@
 """Interface to control the yaw and pitch motors."""
 
-import pi_rtvp.gpio as GPIO
-
 def angle_to_dutycycle(angle):
     """Converts an angle to a duty cycle in the range of 0 to 100.
     This will clamp its results into this proper range.
@@ -38,15 +36,17 @@ def set_yaw(state, angle):
     state.yaw_motor.ChangeDutyCycle(angle_to_dutycycle(angle))
 
 def set_pitch_delta(state, angle, added_angle):
-    if (angle + added_angle) < 0:
+    angle += added_angle
+    if angle < 0:
         angle = 0
-    elif (angle + added_angle) > 180:
+    elif angle + added_angle > 180:
         angle = 180
     state.pitch_motor.ChangeDutyCycle(angle_to_dutycycle(angle))
 
 def set_yaw_delta(state, angle, added_angle):
-    if (angle + added_angle) < 0:
+    angle += added_angle
+    if angle < 0:
         angle = 0
-    elif (angle + added_angle) > 180:
+    elif angle > 180:
         angle = 180
     state.yaw_motor.ChangeDutyCycle(angle_to_dutycycle(angle))

@@ -45,7 +45,7 @@ def setup(yaw_motor, pitch_motor, freq=100):
     """Attempt to setup the Raspberry Pi and PWM outputs.
     Returns a state object to be used throughout the program.
     """
-    GPIO.setmode(GPIO.BOARD)
+    GPIO.setmode(GPIO.BCM)
     GPIO.setup(yaw_motor, GPIO.OUT)
     GPIO.setup(pitch_motor, GPIO.OUT)
     yaw_pwm = GPIO.PWM(yaw_motor, 100)

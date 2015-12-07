@@ -5,7 +5,6 @@ import pi_rtvp.kernel as kernel
 import pi_rtvp.png as png
 from pi_rtvp.util import get_ffserver_conf
 from subprocess import Popen, PIPE, DEVNULL
-import signal
 from readchar import readchar
 
 def input_loop(state):
@@ -35,6 +34,7 @@ stream                                Stream processed video over http
                 save_file(state, int(prompt[1]), prompt[2])
         if prompt[0] == "stream":
             print("Press enter to end the stream")
+            stream_file(state)
 
 def get(state, var):
     if var == None:

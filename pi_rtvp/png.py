@@ -3,7 +3,6 @@ import itertools
 import numpy as np
 import png
 import subprocess
-import pi_rtvp.camera as camera
 import pi_rtvp.util as util
 import pi_rtvp.cutil
 
@@ -90,7 +89,7 @@ class PNGImageStream(object):
 def capture_picam(picamera):
     stream = PNGImageStream()
     picamera.capture(stream, format="png")
-    return stream.image()
+    return stream.image
 
 def capture_usbcam(usbcamera):
     cap = usbcamera.capture("-", stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
