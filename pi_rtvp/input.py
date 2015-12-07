@@ -59,8 +59,9 @@ def set(state, var, value):
             return state
         except ValueError:
             return state
-    setattr(state, var, eval(value))
-    return state
+    else:
+        print("var must be one of: yaw pitch output kernel")
+        return state
 
 def kernel_from_name(name):
     if name == "id":
