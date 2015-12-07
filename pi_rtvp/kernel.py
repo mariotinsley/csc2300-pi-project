@@ -3,14 +3,15 @@ from math import sqrt
 import numpy as np
 from pi_rtvp.util import fullname
 from pi_rtvp.png import PNGImage
+import pi_rtvp.convolve as convolve
 
 class ImageKernel(object):
     def __init__(self, name, size, values):
         self.name = name
         self.size = size
-        if len(values) != size and len(values[0]) != size:
+        if values.size != size*size:
             raise ValueError("values is not an NxN matrix")
-        self.values = values
+        self.values = values.ravel()
 
     def __getitem__(self, key):
         return self.values[key]
@@ -26,46 +27,25 @@ class ImageKernel(object):
         return "Kernel {!r}, size {}x{}".format(self.name, self.size, self.size)
 
     def convolve(self, data):
-        res = 0
-        median = int(self.size / 2)
-        if (data == data[median, median]).all():
-            return data[median, median]
-        res = np.sum(self.values * data)
-        return round(res)
+        return convolve.convolve(data, self.values, self.size)
 
     def convolve_image(self, image):
+        h = image.height
         res_image = PNGImage(None, image.width, image.height,
-                             np.empty((image.height,image.width), dtype=np.uint8),
+                             np.empty(image.height * image.width, dtype=np.uint8),
                              image.info)
-        for i in range(0, len(image)):
-            for j in range (0, len(image[0])):
-                res_image[i, j] = self.convolve(image.get_matrix_at(i, j, self.size))
+        for i in range(0, image.height):
+            for j in range (0, image.width):
+                res_image[i * h + j] = self.convolve(image.get_matrix_at(i, j, self.size))
         return res_image
 
 class IdImageKernel(ImageKernel):
     def convolve(self, data):
-        median = self.size / 2
-        return data[median, median]
-
-class MeanImageKernel(ImageKernel):
-    def convolve(self, data):
-        res = 0
-        median = int(self.size / 2)
-        if (data == data[median, median]).all():
-            return data[median, median]
-        res = np.sum(self.values * data)
-        res /= self.size * self.size
-        return round(res)
+        return convolve.convolve_id(data, self.size)
 
 class GaussianImageKernel(ImageKernel):
     def convolve(self, data):
-        res = 0
-        median = int(self.size / 2)
-        if (data == data[median, median]).all():
-            return data[median, median]
-        res = np.sum(self.values * data)
-        res /= np.sum(self.values)
-        return round(res)
+        return convolve.convolve_gaussian(data, self.values, self.size)
 
 class SobelImageKernel(ImageKernel):
     def __init__(self, name, size, data_x, data_y):
@@ -78,16 +58,8 @@ class SobelImageKernel(ImageKernel):
                                                    self.size, self.data_x, self.data_y)
 
     def convolve(self, data):
-        res = 0
-        rx = 0
-        ry = 0
-        median = int(self.size / 2)
-        if (data == data[median, median]).all():
-            return 0
-        rx = np.sum(self.data_x * data)
-        ry = np.sum(self.data_y * data)
-        res = sqrt(rx * rx + ry * ry) / 8
-        return round(res)
+        return convolve.convolve_sobel(data, self.data_x,
+                                       self.data_y, self.size)
 
 class SobelGaussianImageKernel(ImageKernel):
     def __init__(self, name, size, sobel, guassian):
@@ -108,10 +80,8 @@ def generate_mean(size):
     if size % 2 == 0:
         return None
     data = []
-    for i in range(0, size):
-        data.append(array("B"))
-        data[i].extend([1] * size)
-    return MeanImageKernel("mean", size, np.array(data, dtype=np.uint8))
+    data.extend([1] * size * size)
+    return ImageKernel("mean", size, np.array(data, dtype=np.uint8).reshape((size, size)))
 
 def generate_gaussian(size):
     if size % 2 == 0:
@@ -119,21 +89,19 @@ def generate_gaussian(size):
     median = int(size / 2)
     data = []
     for i in range(0, median+1):
-        data.append(array("H"))
         for j in range(0, median+1):
-            data[i].append(2 ** (i+j))
+            data.append(2 ** (i+j))
         for j in range(median+1, size):
             jdx = size - j - 1
-            data[i].append(2 ** (i+jdx))
+            data.append(2 ** (i+jdx))
     for i in range(median+1, size):
         idx = size - i - 1
-        data.append(array("H"))
         for j in range(0, median+1):
-            data[i].append(2 ** (idx+j))
+            data.append(2 ** (idx+j))
         for j in range(median+1, size):
             jdx = size - j - 1
-            data[i].append(2 ** (idx+jdx))
-    return GaussianImageKernel("gaussian", size, np.array(data, dtype=np.uint16))
+            data.append(2 ** (idx+jdx))
+    return GaussianImageKernel("gaussian", size, np.array(data, dtype=np.uint16).reshape((size, size)))
 
 id = IdImageKernel("id", 3, np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype=np.uint8))
 

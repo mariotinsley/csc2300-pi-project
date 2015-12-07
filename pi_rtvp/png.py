@@ -5,6 +5,7 @@ import png
 import subprocess
 import pi_rtvp.camera as camera
 import pi_rtvp.util as util
+import pi_rtvp.cutil
 
 class PNGImage(object):
     def __init__(self, infile, width = 0, height = 0, data = None, info = None):
@@ -14,7 +15,7 @@ class PNGImage(object):
                 image = png.Reader(infile).asDirect()
                 self.width = image[0]
                 self.height = image[1]
-                self.data = np.vstack(map(np.uint8, image[2]))
+                self.data = np.hstack(map(np.uint8, image[2]))
                 self.info = image[3]
             else:
                 self.width = width
@@ -23,6 +24,7 @@ class PNGImage(object):
                 self.info = info
             self.planes = self.info.get("planes", 3) # assume RGB if planes is missing
             self.greyscale = self.info.get("greyscale", False)
+            self.shaped_data = self.data.reshape(self.height, self.width*self.planes)
         except FileNotFoundError:
             raise
 
@@ -51,9 +53,9 @@ class PNGImage(object):
         writer = png.Writer(self.width, self.height, **self.info)
         if isinstance(outfile, str):
             with open(outfile, "wb") as f:
-                writer.write(f, self.data)
+                writer.write(f, self.data.reshape(self.height, self.width))
         else:
-            writer.write(outfile, self.data)
+            writer.write(outfile, self.data.reshape(self.height, self.width))
 
     def to_greyscale(self):
         return convert_to_greyscale(self)
@@ -65,16 +67,12 @@ class PNGImage(object):
     def get_matrix_at(self, y, x, size):
         median = int(size / 2)
         if not self.is_matrix_in_bounds(y, x, size, median):
-            if is_corner(self, y, x, size):
-                return corner_matrix(self, y, x, size)
+            if is_corner(self, y, x, size, median):
+                return corner_matrix(self, y, x, size, median)
             else:
-                return edge_matrix(self, y, x, size)
+                return edge_matrix(self, y, x, size, median)
         else:
-            yl = y - median
-            xl = x - median
-            data = np.empty((size,size))
-            data = self[yl:yl+size,xl:xl+size]
-            return data
+            return center_matrix(self, y, x, size, median)
 
 class PNGImageStream(object):
     def __init__(self):
@@ -102,15 +100,11 @@ def capture_usbcam(usbcamera):
 
 def convert_to_greyscale(image):
     data = []
-    info = image.info.copy();
-    r_coeff = 0.2126
-    g_coeff = 0.7152
-    b_coeff = 0.0722
-    for row in image:
-        for i in range(0, image.width*image.planes, image.planes):
-            grey = round(r_coeff*row[i]+g_coeff*row[i+1]+b_coeff*row[i+2])
-            data.append(grey)
-    data = np.array(data, dtype=np.uint8).reshape(image.height, image.width)
+    info = image.info.copy()
+    flat = image.data.flat
+    for (r, g, b) in zip(flat[::1],flat[::2],flat[::3]):
+        data.append(pi_rtvp.cutil.rgb_to_l(r, g, b))
+    data = np.array(data, dtype=np.uint8)
     info["planes"] = 1
     info["greyscale"] = True
     info["alpha"] = False
@@ -118,82 +112,87 @@ def convert_to_greyscale(image):
         info["background"] = (255)
     return PNGImage(None, image.width, image.height, data, info)
 
-def is_corner(image, y, x, size):
-    median = int(size / 2)
+def is_corner(image, y, x, size, median):
     return (x - median <= 0 and y - median <= 0 or
             x - median <= 0 and y + median >= image.height - 1 or
             x + median >= image.width - 1 and y - median <= 0 or
             x + median >= image.width - 1 and y + median >= image.height - 1)
 
+def center_matrix(image, y, x, size, median):
+    data = np.empty(size*size)
+    h = image.height
+    yl = y*h - median
+    xl = x - median
+    data = image.shaped_data[yl:yl+size,xl:xl+size]
+    return data
+
 # This stuff is tricky to think about - is there an easier way?
-def corner_matrix(image, y, x, size):
+def corner_matrix(image, y, x, size, median):
     data = []
-    median = int(size / 2)
     if x - median <= 0 and y - median <= 0:
         # top left - outs first, extend starts
         for i in range(0, median+1):
             extend_corner(data, image, y, x, -median)
             for j in range(0, median+1):
-                data.append(image[y, x+j])
+                data.append(image.shaped_data[y, x+j])
         for i in range(median+1, size):
             extend_corner(data, image, y+i, x, -median)
             for j in range(0, median+1):
-                data.append(image[y+i, x+j])
+                data.append(image.shaped_data[y+i, x+j])
     elif x - median <= 0 and y + median >= image.height - 1:
         # bottom left - ins first, extend starts
         for i in range(size, median+1, -1):
             imidx = i - 1
             extend_corner(data, image, y-imidx, x, -median)
             for j in range(0, median+1):
-                data.append(image[y-imidx, x+j])
+                data.append(image.shaped_data[y-imidx, x+j])
         for i in range(median+1, 0, -1):
             extend_corner(data, image, y, x, -median)
             for j in range(0, median+1):
-                data.append(image[y, x+j])
+                data.append(image.shaped_data[y, x+j])
     elif x + median >= image.width - 1 and y - median <= 0:
         # top right - outs first, extend ends
         for i in range(0, median+1):
             for j in range(median, -1, -1):
-                data.append(image[y, x-j])
+                data.append(image.shaped_data[y, x-j])
             extend_corner(data, image, y, x, median)
         for i in range (median+1, size):
             for j in range(median, -1, -1):
-                data.append(image[y+i, x-j])
+                data.append(image.shaped_data[y+i, x-j])
             extend_corner(data, image, y+i, x, median)
     elif x + median >= image.width - 1 and y + median >= image.height - 1:
         # bottom right - ins first, extend ends
         for i in range(size, median+1, -1):
             imidx = i - 1
             for j in range(median, -1, -1):
-                data.append(image[y-imidx, x-j])
+                data.append(image.shaped_data[y-imidx, x-j])
             extend_corner(data, image, y-imidx, x, median)
         for i in range(median+1, 0, -1):
             idx = size - i
             for j in range(median, -1, -1):
-                data.append(image[y, x-j])
+                data.append(image.shaped_data[y, x-j])
             extend_corner(data, image, y, x, median)
-    return np.array(data).reshape(size, size)
+    return np.array(data)
 
 def extend_corner(data, image, y, x, median):
     if median > 0:
         for i in range(0, median):
             try:
-                data.append(image[y, x+median-i])
+                data.append(image.shaped_data[y, x+median-i])
             except IndexError:
-                data.append(image[y, x])
+                data.append(image.shaped_data[y, x])
     else:
         for i in range(0, median, -1):
             try:
                 # python treats negative list indices as list[len(list)-n]
                 if x+median-i < 0:
                     raise IndexError
-                data.append(image[y, x+median-i])
+                data.append(image.shaped_data[y, x+median-i])
             except IndexError:
-                data.append(image[y, x])
+                data.append(image.shaped_data[y, x])
 
-def edge_matrix(image, y, x, size):
+def edge_matrix(image, y, x, size, median):
     data = []
-    median = int(size / 2)
     if y - median <= 0:
         # top row, outs first
         for (i, j) in itertools.product(range(0, median+1), range(0, size)):
@@ -201,26 +200,26 @@ def edge_matrix(image, y, x, size):
             try:
                 if y - median - i < 0:
                     raise IndexError
-                data.append(image[y-median+i, x+jdx])
+                data.append(image.shaped_data[y-median+i, x+jdx])
             except IndexError:
-                data.append(image[y, x+jdx])
+                data.append(image.shaped_data[y, x+jdx])
         for (i, j) in itertools.product(range(median+1, size), range(0, size)):
             jdx = j - median
-            data.append(image[y+i, x+jdx])
+            data.append(image.shaped_data[y+i, x+jdx])
     elif y + median >= image.height - 1:
         # bottom row, outs last
         for (i, j) in itertools.product(range(size, median+1, -1), range(0, size)):
             idx = size - i
             imidx = i - 1
             jdx = j - median
-            data.append(image[y-imidx, x+jdx])
+            data.append(image.shaped_data[y-imidx, x+jdx])
         for (i, j) in itertools.product(range(median+1, 0, -1), range(0, size)):
             idx = size - i
             jdx = j - median
             try:
-                data.append(image[y+idx-median, x+jdx])
+                data.append(image.shaped_data[y+idx-median, x+jdx])
             except IndexError:
-                data.append(image[y, x+jdx])
+                data.append(image.shaped_data[y, x+jdx])
     elif x - median <= 0:
         # left side, extend first
         for (i, j) in itertools.product(range(0, size), range(0, size)):
@@ -229,16 +228,16 @@ def edge_matrix(image, y, x, size):
             try:
                 if x+jdx < 0:
                     raise IndexError
-                data.append(image[y+idx, x+jdx])
+                data.append(image.shaped_data[y+idx, x+jdx])
             except IndexError:
-                data.append(image[y+idx, x])
+                data.append(image.shaped_data[y+idx, x])
     elif x + median >= image.width - 1:
         # right side, extend last
         for (i, j) in itertools.product(range(0,size), range(0, size)):
             idx = i - median
             jdx = j - median
             try:
-                data.append(image[y+idx, x+jdx])
+                data.append(image.shaped_data[y+idx, x+jdx])
             except IndexError:
-                data.append(image[y+idx, x])
-    return np.array(data).reshape(size, size)
+                data.append(image.shaped_data[y+idx, x])
+    return np.array(data)

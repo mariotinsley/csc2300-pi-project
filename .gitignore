@@ -44,3 +44,4 @@ dist/
 .cache/
 .hypothesis/
 __pycache__/
+*.so

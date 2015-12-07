@@ -1,5 +1,6 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 from setuptools.command.test import test as TestCommand
+from numpy.distutils.misc_util import get_numpy_include_dirs
 from codecs import open
 from os import path
 
@@ -45,6 +46,11 @@ setup(
     tests_require=["tox"],
     cmdclass={"test": Tox},
     data_files=[("/etc/pi_rtvp", [path.join(here, "conf/ffserver.rtvp.conf")])],
+    ext_modules=[
+        Extension("pi_rtvp.cutil", ["pi_rtvp/py_cutil.c", "pi_rtvp/cutil.c"]),
+        Extension("pi_rtvp.convolve", ["pi_rtvp/py_convolve.c", "pi_rtvp/convolve.c"]),
+    ],
+    include_dirs=get_numpy_include_dirs(),
     entry_points={
         "console_scripts": [
             "pi_rtvp=pi_rtvp:main"
